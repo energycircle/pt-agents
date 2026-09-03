@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRIT — Find Your Place in the Trades</title>
+  
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Recharts & Lucide CDNs -->
+  <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/lucide-react/dist/umd/lucide-react.js"></script>
+</head>
+<body style="margin: 0; background-color: #E7E7E0;">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+    const { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } = Recharts;
+    const { 
+      Wrench, Search, PenTool, Users, TrendingUp, ClipboardList,
+      Zap, Droplet, Hammer, HardHat, Cpu, Gauge, GraduationCap,
+      ShieldCheck, Radio, Briefcase, RotateCcw, ArrowLeft, Check 
+    } = LucideReact;
+
+    /* --- C. COLOR PALETTE & DATA --- */
+    const C = {
+      concrete: "#E7E7E0", paper: "#F5F4EE", graphite: "#1B1D22", ink: "#111318",
+      orange: "#FF5A1F", hivis: "#FFD21E", steel: "#2E5266", line: "#C9C9C0",
+    };
+
+    const DIMS = [
+      { k: "R", label: "Hands-On Builder", short: "Builder", color: "#FF5A1F", icon: Wrench, blurb: "You'd rather do it than read about it. Real tools, real materials, something finished at the end of the day." },
+      { k: "I", label: "Problem-Solver", short: "Solver", color: "#2E5266", icon: Search, blurb: "You want to know why it broke and how to outsmart it. The puzzle is the fun part." },
+      { k: "A", label: "Designer", short: "Designer", color: "#6E4A8E", icon: PenTool, blurb: "You care how it looks and how the pieces fit together. You notice when something's a little off." },
+      { k: "S", label: "People Person", short: "People", color: "#3E7D5A", icon: Users, blurb: "You like helping, teaching, and being the one people count on when something goes wrong." },
+      { k: "E", label: "Leader", short: "Leader", color: "#C48A1A", icon: TrendingUp, blurb: "You like calling the shots, winning the work, and eventually running the whole show." },
+      { k: "C", label: "Organizer", short: "Organizer", color: "#465360", icon: ClipboardList, blurb: "You like a plan that holds, numbers that add up, and everything done right the first time." },
+    ];
+
+    const ITEMS = [
+      { t: "Take a machine apart to figure out how it works", k: "R" },
+      { t: "Build something from scratch with power tools", k: "R" },
+      { t: "Fix an engine or an appliance that stopped working", k: "R" },
+      { t: "Spend the whole day working with your hands, not a screen", k: "R" },
+      { t: "Operate heavy equipment on a job", k: "R" },
+      { t: "Track down why a system keeps failing", k: "I" },
+      { t: "Run tests to diagnose a tricky problem", k: "I" },
+      { t: "Figure out the math behind how something is built", k: "I" },
+      { t: "Learn how a brand-new technology actually works", k: "I" },
+      { t: "Crack a problem everyone else gave up on", k: "I" },
+      { t: "Design how a finished space will look and feel", k: "A" },
+      { t: "Sketch or model a project before anyone builds it", k: "A" },
+      { t: "Come up with a solution nobody else thought of", k: "A" },
+      { t: "Customize something until it looks exactly right", k: "A" },
+      { t: "Make something that's genuinely nice to look at", k: "A" },
+      { t: "Teach someone a skill you're good at", k: "S" },
+      { t: "Walk a customer through how to take care of their home", k: "S" },
+      { t: "Show a younger worker the ropes", k: "S" },
+      { t: "Be the person a family calls when something breaks", k: "S" },
+      { t: "Work on a crew where everyone has each other's back", k: "S" },
+      { t: "Run your own business one day", k: "E" },
+      { t: "Convince a customer your solution is worth it", k: "E" },
+      { t: "Lead a crew and make the calls on a job", k: "E" },
+      { t: "Bid on a project and win the work", k: "E" },
+      { t: "Set big goals and push hard to hit them", k: "E" },
+      { t: "Keep a project organized and on schedule", k: "C" },
+      { t: "Follow a detailed plan exactly to code", k: "C" },
+      { t: "Manage the budget and numbers for a job", k: "C" },
+      { t: "Inspect finished work for every small mistake", k: "C" },
+      { t: "Keep records so clean nothing ever slips", k: "C" },
+    ];
+
+    const SCALE = [
+      { v: 1, label: "No way" }, { v: 2, label: "Not really" },
+      { v: 3, label: "Maybe" },  { v: 4, label: "Sounds good" }, { v: 5, label: "Love it" },
+    ];
+
+    const TRADES = {
+      HVAC:       { label: "HVAC",       icon: Gauge,   color: "#FF5A1F" },
+      Electrical: { label: "Electrical", icon: Zap,     color: "#C48A1A" },
+      Plumbing:   { label: "Plumbing",   icon: Droplet, color: "#2E5266" },
+      Carpentry:  { label: "Carpentry",  icon: Hammer,  color: "#7A5A3A" },
+      Cross:      { label: "Any Trade",  icon: HardHat, color: "#3E7D5A" },
+    };
+
+    const BAND = { hands: 0, tech: 1, design: 2, people: 3, biz: 4 };
+    const BAND_LABEL = ["Hands-on", "Diagnostic", "Design", "People", "Business"];
+
+    const ROLES = [
+      { trade: "HVAC", title: "Install Technician", band: BAND.hands, icon: Wrench, w: { R:3, C:1, S:1 }, blurb: "You build the system — set the equipment, run the ductwork, make it real." },
+      { trade: "HVAC", title: "Service Technician", band: BAND.tech, icon: Search, w: { R:2, I:3, S:1 }, blurb: "The detective of the trade. A system's down and it's on you to find out why." },
+      { trade: "HVAC", title: "Controls & Automation Tech", band: BAND.tech, icon: Cpu, surprise: true, w: { I:3, C:2, R:1 }, blurb: "You program the brains of a building — smart thermostats, sensors, whole-building systems." },
+      { trade: "HVAC", title: "System Designer", band: BAND.design, icon: PenTool, surprise: true, w: { I:3, A:2, C:2 }, blurb: "You size and design the system on a computer before anyone lifts a tool." },
+      { trade: "HVAC", title: "Comfort Advisor", band: BAND.people, icon: Users, w: { E:3, S:3, I:1 }, blurb: "You sit with a family, figure out what they need, and help them choose." },
+      { trade: "HVAC", title: "Owner / Contractor", band: BAND.biz, icon: Briefcase, w: { E:3, C:2, R:1 }, blurb: "You run the company: the crews, the customers, the money." },
+      { trade: "Electrical", title: "Wiring Electrician", band: BAND.hands, icon: Wrench, w: { R:3, C:1, I:1 }, blurb: "You bring a building to life — rough-in, panels, devices." },
+      { trade: "Electrical", title: "Service Electrician", band: BAND.tech, icon: Search, w: { I:3, R:2 }, blurb: "Something's dead and nobody knows why. You read the circuit and fix what others couldn't." },
+      { trade: "Electrical", title: "Smart-Systems Tech", band: BAND.tech, icon: Radio, surprise: true, w: { I:3, C:2, A:1 }, blurb: "Low-voltage, networking, security, smart-home. The fastest-growing corner of the trade." },
+      { trade: "Electrical", title: "Solar & Battery Installer", band: BAND.hands, icon: Zap, w: { R:3, I:2 }, blurb: "You install the systems powering the next few decades." },
+      { trade: "Electrical", title: "Estimator", band: BAND.biz, icon: ClipboardList, surprise: true, w: { C:3, I:2, E:1 }, blurb: "You price the whole job before it starts — plans, math, materials." },
+      { trade: "Electrical", title: "Master Electrician", band: BAND.biz, icon: Briefcase, w: { E:3, C:2, R:1 }, blurb: "Top of the license ladder. You sign off on work, lead crews, and can run your own shop." },
+      { trade: "Plumbing", title: "New-Construction Plumber", band: BAND.hands, icon: Wrench, w: { R:3, C:1 }, blurb: "You rough in a building from bare studs — the water, the waste, the gas." },
+      { trade: "Plumbing", title: "Service Plumber", band: BAND.tech, icon: Search, w: { R:2, I:2, S:2 }, blurb: "Every call is a new problem in a stranger's home. You diagnose it, fix it, and leave a customer relieved." },
+      { trade: "Plumbing", title: "Pipefitter / Steamfitter", band: BAND.tech, icon: Gauge, w: { R:3, I:2 }, blurb: "Industrial-scale systems — plants, hospitals, high-rises. Precision welding and high pay." },
+      { trade: "Plumbing", title: "Water-Quality Specialist", band: BAND.tech, icon: ShieldCheck, surprise: true, w: { I:3, C:2 }, blurb: "You test, certify, and protect a building's water. Science-heavy and quietly in demand." },
+      { trade: "Plumbing", title: "Plumbing Designer", band: BAND.design, icon: PenTool, surprise: true, w: { I:2, A:2, C:3 }, blurb: "You lay out entire plumbing systems in software for big buildings." },
+      { trade: "Plumbing", title: "Owner / Contractor", band: BAND.biz, icon: Briefcase, w: { E:3, C:2 }, blurb: "You build the business behind the trucks. Plumbing shops are extremely profitable." },
+      { trade: "Carpentry", title: "Framer", band: BAND.hands, icon: Hammer, w: { R:3, E:1 }, blurb: "You put up the skeleton of a building. Fast, strong, outdoors." },
+      { trade: "Carpentry", title: "Finish Carpenter", band: BAND.design, icon: PenTool, w: { R:3, A:3 }, blurb: "The details people run their hands over — trim, stairs, built-ins." },
+      { trade: "Carpentry", title: "Cabinet Maker", band: BAND.design, icon: PenTool, w: { R:2, A:3, I:1 }, blurb: "You design and build furniture and millwork to the millimeter." },
+      { trade: "Carpentry", title: "Custom Remodeler", band: BAND.hands, icon: Wrench, w: { R:2, A:2, E:2 }, blurb: "You take a tired room and make it something people love." },
+      { trade: "Carpentry", title: "Project Manager / GC", band: BAND.biz, icon: ClipboardList, w: { C:3, E:3, S:2 }, blurb: "You run the whole build — crews, schedule, budget, clients." },
+      { trade: "Carpentry", title: "Design-Build / CAD", band: BAND.design, icon: Cpu, surprise: true, w: { I:2, A:3, C:2 }, blurb: "You design projects on-screen and see them built." },
+      { trade: "Cross", title: "Crew Foreman", band: BAND.people, icon: HardHat, w: { E:2, S:3, R:2, C:1 }, blurb: "You lead the crew on site — keep people moving, safe, and proud of the work." },
+      { trade: "Cross", title: "Trades Instructor", band: BAND.people, icon: GraduationCap, surprise: true, w: { S:3, R:2, A:1 }, blurb: "You teach the next wave of tradespeople." },
+      { trade: "Cross", title: "Building Inspector", band: BAND.tech, icon: ShieldCheck, surprise: true, w: { C:3, I:2 }, blurb: "You make sure work is safe and to code." },
+      { trade: "Cross", title: "Sales Engineer", band: BAND.biz, icon: TrendingUp, surprise: true, w: { E:3, I:2, S:2 }, blurb: "You know the tech cold and help contractors buy the right gear." },
+      { trade: "Cross", title: "Trades Content Creator", band: BAND.people, icon: Radio, surprise: true, w: { A:3, E:2, S:2, R:1 }, blurb: "You make videos and content that teach millions of tradespeople." },
+    ];
+
+    const PERSONA = {
+      RI: "The Troubleshooter", RA: "The Craftsman", RC: "The Precisionist", RS: "The Go-To Fixer", RE: "The Hands-On Boss",
+      IA: "The Systems Designer", IC: "The Diagnostician", IS: "The Explainer", IE: "The Technical Closer",
+      AC: "The Detail Designer", AS: "The Creative Collaborator", AE: "The Maker With a Plan",
+      SC: "The Coordinator", SE: "The Crew Leader", CE: "The Operator",
+    };
+    const SOLO = { R: "The Builder", I: "The Problem-Solver", A: "The Designer", S: "The People Person", E: "The Leader", C: "The Organizer" };
+
+    function personaTitle(order) {
+      const [a, b] = order;
+      return PERSONA[a + b] || PERSONA[b + a] || SOLO[a];
+    }
+
+    /* --- COMPONENTS --- */
+    function FontsAndBase() {
+      return (
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow:wght@400;500;600;700;800&family=Barlow+Semi+Condensed:wght@600;700&display=swap');
+          .g-display{ font-family:'Archivo Black', system-ui, sans-serif; letter-spacing:-.01em; line-height:.98; }
+          .g-stencil{ font-family:'Barlow Semi Condensed', sans-serif; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+          .g-hazard{ background-image:repeating-linear-gradient(45deg, ${C.graphite} 0 14px, ${C.hivis} 14px 28px); }
+          .g-btn{ transition:transform .08s ease, box-shadow .12s ease; }
+          .g-btn:active{ transform:translateY(2px); }
+          .g-tap:focus-visible{ outline:3px solid ${C.steel}; outline-offset:2px; }
+          .g-rise{ animation:grise .5s cubic-bezier(.2,.7,.2,1) both; }
+          @keyframes grise{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;} }
+          @media (prefers-reduced-motion: reduce){ .g-rise{ animation:none; } }
+          .g-scroll{ max-width:1000px; margin:0 auto; }
+          .g-wire{ display:grid; gap:26px; grid-template-columns:1fr; align-items:center; }
+          @media (min-width:720px){ .g-wire{ grid-template-columns:minmax(260px,380px) 1fr; } }
+        `}</style>
+      );
+    }
+
+    function score(answers) {
+      const raw = { R:0, I:0, A:0, S:0, E:0, C:0 };
+      ITEMS.forEach((it, idx) => { raw[it.k] += answers[idx] || 0; });
+      const norm = {};
+      Object.keys(raw).forEach((k) => { norm[k] = (raw[k] - 5) / 20; });
+      const order = [...DIMS.map(d => d.k)].sort((a, b) => norm[b] - norm[a]);
+
+      const scored = ROLES.map((role) => {
+        let num = 0, den = 0;
+        Object.entries(role.w).forEach(([k, wt]) => { num += wt * norm[k]; den += wt; });
+        return { ...role, fit: Math.round((den ? num / den : 0) * 100) };
+      }).sort((a, b) => b.fit - a.fit);
+
+      const byTrade = {};
+      scored.forEach((r) => {
+        if (r.trade === "Cross") return;
+        (byTrade[r.trade] ||= []).push(r);
+      });
+      let bestTrade = null, bestScore = -1;
+      Object.entries(byTrade).forEach(([t, rs]) => {
+        const top3 = rs.slice(0, 3).reduce((s, r) => s + r.fit, 0) / Math.min(3, rs.length);
+        if (top3 > bestScore) { bestScore = top3; bestTrade = t; }
+      });
+
+      const top = scored.slice(0, 4);
+      const topIds = new Set(top.map(r => r.title + r.trade));
+      const surprises = scored.filter(r => r.surprise && !topIds.has(r.title + r.trade)).slice(0, 2);
+      const radar = DIMS.map(d => ({ dim: d.short, value: Math.round(norm[d.k] * 100) }));
+
+      return { norm, order, top, surprises, radar, persona: personaTitle(order), trade: bestTrade, tradeRoles: (byTrade[bestTrade] || []).slice().sort((a, b) => a.band - b.band) };
+    }
+
+    function Intro({ onStart }) {
+      return (
+        <div>
+          <div className="g-hazard" style={{ height: 12 }} />
+          <div className="g-scroll" style={{ padding: "clamp(28px,6vw,72px) 22px 60px" }}>
+            <div className="g-stencil" style={{ color: C.orange, fontSize: 13, marginBottom: 28 }}>GRIT Foundation · Skilled Trades</div>
+            <h1 className="g-display" style={{ fontSize: "clamp(38px,8vw,84px)", color: C.ink, maxWidth: 900 }}>The trades need more<br />than one kind of person.</h1>
+            <p style={{ fontSize: "clamp(17px,2.4vw,22px)", lineHeight: 1.5, maxWidth: 620, marginTop: 26, color: "#33363d" }}>
+              Everyone pictures the trades as swinging a hammer all day. That's one job out of hundreds. HVAC, electrical, plumbing, and carpentry are full of people who diagnose, design, lead, teach, and run the whole show. Answer a few honest questions and find where <em>you'd</em> fit.
+            </p>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 36 }}>
+              <button onClick={onStart} className="g-btn g-tap" style={{ background: C.orange, color: "#fff", border: "none", padding: "16px 34px", fontSize: 19, fontWeight: 800, cursor: "pointer", borderRadius: 2, boxShadow: `5px 5px 0 ${C.graphite}`, fontFamily: "'Barlow', sans-serif" }}>Find your fit</button>
+              <span style={{ fontSize: 15, color: "#5b5e64" }}>About 4 minutes · no sign-up · no wrong answers</span>
+            </div>
+            <div style={{ marginTop: 56, borderTop: `2px solid ${C.line}`, paddingTop: 24, maxWidth: 720 }}>
+              <div style={{ display: "flex", gap: 20, alignItems: "baseline", flexWrap: "wrap" }}>
+                <span className="g-display" style={{ fontSize: 60, color: C.orange }}>6%</span>
+                <p style={{ fontSize: 17, lineHeight: 1.45, color: "#33363d", maxWidth: 470 }}>of high school students are even looking at the trades. Plenty of the other 94% would be great at this work — they were just never shown the range.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Quiz({ i, answers, onAnswer, onBack }) {
+      const item = ITEMS[i];
+      const pct = Math.round((i / ITEMS.length) * 100);
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "18px 22px 0" }} className="g-scroll">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <button onClick={onBack} className="g-tap" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "#5b5e64", fontSize: 15, fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>
+                <ArrowLeft size={17} /> Back
+              </button>
+              <span className="g-stencil" style={{ fontSize: 12, color: "#5b5e64" }}>{String(i + 1).padStart(2, "0")} / {ITEMS.length}</span>
+            </div>
+            <div style={{ height: 8, background: "#d3d3cb", borderRadius: 2, overflow: "hidden" }}>
+              <div className="g-hazard" style={{ width: `${pct}%`, height: "100%", transition: "width .25s ease" }} />
+            </div>
+          </div>
+          <div className="g-scroll" style={{ padding: "0 22px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 760 }}>
+            <div key={i} className="g-rise">
+              <div className="g-stencil" style={{ color: C.orange, fontSize: 12, marginBottom: 18 }}>How much would you enjoy this?</div>
+              <h2 className="g-display" style={{ fontSize: "clamp(28px,5.5vw,50px)", color: C.ink, marginBottom: 34 }}>{item.t}</h2>
+              <div style={{ display: "grid", gap: 10 }}>
+                {SCALE.map((s) => {
+                  const active = answers[i] === s.v;
+                  return (
+                    <button key={s.v} onClick={() => onAnswer(s.v)} className="g-btn g-tap" style={{ textAlign: "left", padding: "15px 18px", borderRadius: 2, cursor: "pointer", fontSize: 18, fontWeight: 700, fontFamily: "'Barlow',sans-serif", border: `2px solid ${active ? C.orange : C.line}`, background: active ? C.orange : C.paper, color: active ? "#fff" : C.ink, display: "flex", alignItems: "center", gap: 14 }}>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, border: `2px solid ${active ? "#fff" : C.line}`, display: "grid", placeItems: "center" }}>
+                        {active && <Check size={16} color="#fff" />}
+                      </span>
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div style={{ height: 40 }} />
+        </div>
+      );
+    }
+
+    function Loading() {
+      return (
+        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
+          <div style={{ textAlign: "center" }}>
+            <div className="g-hazard" style={{ width: 220, height: 12, margin: "0 auto 26px", animation: "grise .4s both" }} />
+            <div className="g-display" style={{ fontSize: "clamp(26px,5vw,44px)", color: C.ink }}>Reading your blueprint…</div>
+            <p style={{ color: "#5b5e64", marginTop: 10, fontSize: 16 }}>Matching you to real roles in the trades.</p>
+          </div>
+        </div>
+      );
+    }
+
+    function SectionTitle({ n, title, sub }) {
+      return (
+        <div style={{ marginTop: 52, marginBottom: 20, borderTop: `3px solid ${C.graphite}`, paddingTop: 18 }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "baseline" }}>
+            <span className="g-display" style={{ fontSize: 20, color: C.orange }}>{n}</span>
+            <h2 className="g-display" style={{ fontSize: "clamp(24px,4vw,38px)", color: C.ink }}>{title}</h2>
+          </div>
+          {sub && <p style={{ fontSize: 16.5, color: "#4a4d53", lineHeight: 1.5, maxWidth: 680, marginTop: 8 }}>{sub}</p>}
+        </div>
+      );
+    }
+
+    function RoleCard({ role, showFit, surprise }) {
+      const meta = TRADES[role.trade];
+      const Icon = role.icon || meta.icon;
+      return (
+        <div style={{ background: C.paper, border: `2px solid ${surprise ? C.hivis : C.line}`, borderRadius: 3, padding: 17, display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <span className="g-stencil" style={{ fontSize: 11, color: meta.color, display: "flex", alignItems: "center", gap: 6 }}>
+              <meta.icon size={14} /> {meta.label}
+            </span>
+            {showFit && (
+              <span style={{ fontFamily: "'Archivo Black',sans-serif", fontSize: 20, color: role.fit >= 70 ? C.orange : "#8a8d92" }}>
+                {role.fit}<span style={{ fontSize: 12 }}>% fit</span>
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
+            <div style={{ width: 40, height: 40, background: C.graphite, borderRadius: 3, display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <Icon size={21} color="#fff" />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.05 }}>{role.title}</h3>
+          </div>
+          <p style={{ fontSize: 15, color: "#3f4249", lineHeight: 1.45 }}>{role.blurb}</p>
+        </div>
+      );
+    }
+
+    function Spectrum({ roles, meta }) {
+      const bands = [0, 1, 2, 3, 4].map((b) => ({
+        label: BAND_LABEL[b],
+        roles: roles.filter(r => r.band === b),
+      })).filter(g => g.roles.length);
+
+      return (
+        <div style={{ display: "grid", gap: 14 }}>
+          {bands.map((g) => (
+            <div key={g.label} style={{ display: "grid", gridTemplateColumns: "92px 1fr", gap: 14, alignItems: "start" }}>
+              <div className="g-stencil" style={{ color: C.hivis, fontSize: 11, paddingTop: 6, textAlign: "right" }}>{g.label}</div>
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))" }}>
+                {g.roles.map((role) => {
+                  const strong = role.fit >= 65;
+                  const Icon = role.icon;
+                  return (
+                    <div key={role.title} style={{ border: `2px solid ${strong ? C.orange : "#3a3d44"}`, background: strong ? "#241a13" : "#212429", borderRadius: 3, padding: "10px 12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
+                          <Icon size={16} color={strong ? C.orange : "#8f9298"} /> {role.title}
+                        </span>
+                        <span style={{ fontFamily: "'Archivo Black',sans-serif", fontSize: 14, color: strong ? C.orange : "#8f9298" }}>{role.fit}</span>
+                      </div>
+                      {strong && <div style={{ color: "#d9b08c", fontSize: 12.5, marginTop: 4, fontWeight: 600 }}>Strong fit for you</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function Results({ r, onRestart, reduce }) {
+      const topTwo = r.order.slice(0, 2).map(k => DIMS.find(d => d.k === k));
+      const tradeMeta = TRADES[r.trade];
+
+      return (
+        <div>
+          <div className="g-hazard" style={{ height: 12 }} />
+          <div className="g-scroll" style={{ padding: "clamp(26px,5vw,54px) 22px 70px" }}>
+            <div className="g-rise">
+              <div className="g-stencil" style={{ color: C.orange, fontSize: 12, marginBottom: 14 }}>Your result</div>
+              <h1 className="g-display" style={{ fontSize: "clamp(40px,9vw,92px)", color: C.ink }}>{r.persona}</h1>
+              <p style={{ fontSize: "clamp(17px,2.3vw,21px)", lineHeight: 1.5, maxWidth: 640, marginTop: 16, color: "#33363d" }}>
+                You lean <strong style={{ color: topTwo[0].color }}>{topTwo[0].label}</strong> and <strong style={{ color: topTwo[1].color }}>{topTwo[1].label}</strong>. That combination has a home in every trade below — and probably a few roles you didn't know existed.
+              </p>
+            </div>
+
+            <section className="g-wire" style={{ marginTop: 46 }}>
+              <div style={{ background: C.graphite, borderRadius: 4, padding: "10px 6px 6px" }}>
+                <div className="g-stencil" style={{ color: C.hivis, fontSize: 11, padding: "8px 14px 0" }}>How you're wired</div>
+                <div style={{ width: "100%", height: 280 }}>
+                  <ResponsiveContainer>
+                    <RadarChart data={r.radar} outerRadius="72%">
+                      <PolarGrid stroke="#3a3d44" />
+                      <PolarAngleAxis dataKey="dim" tick={{ fill: "#cfd0cf", fontSize: 12, fontWeight: 700 }} />
+                      <Radar dataKey="value" stroke={C.orange} fill={C.orange} fillOpacity={0.5} isAnimationActive={!reduce} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {r.order.slice(0, 3).map((k) => {
+                  const d = DIMS.find(x => x.k === k); const Icon = d.icon;
+                  return (
+                    <div key={k} style={{ display: "flex", gap: 13, alignItems: "flex-start", background: C.paper, border: `2px solid ${C.line}`, borderLeft: `6px solid ${d.color}`, padding: "13px 15px", borderRadius: 2 }}>
+                      <Icon size={22} color={d.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 17 }}>{d.label}</div>
+                        <div style={{ fontSize: 14.5, color: "#4a4d53", lineHeight: 1.4 }}>{d.blurb}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <SectionTitle n="01" title="Roles built for you" sub="Across all four trades, ranked by how well they fit the way you're wired." />
+            <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+              {r.top.map((role) => <RoleCard key={role.trade + role.title} role={role} showFit />)}
+            </div>
+
+            <SectionTitle n="02" title={`The range inside ${tradeMeta.label}`} sub={`Your strongest-fit trade isn't one job — it's a whole spectrum. Here's ${tradeMeta.label} from the tools all the way to the corner office, with your best fits marked.`} />
+            <div style={{ background: C.graphite, borderRadius: 4, padding: "20px 16px 22px", backgroundImage: `linear-gradient(#ffffff10 1px, transparent 1px), linear-gradient(90deg, #ffffff10 1px, transparent 1px)`, backgroundSize: "26px 26px" }}>
+              <Spectrum roles={r.tradeRoles} meta={tradeMeta} />
+            </div>
+
+            {r.surprises.length > 0 && (
+              <>
+                <SectionTitle n="03" title="You probably didn't know these existed" sub="Same trades. Roles nobody tells 16-year-olds about — and they fit you." />
+                <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+                  {r.surprises.map((role) => <RoleCard key={role.trade + role.title} role={role} surprise showFit />)}
+                </div>
+              </>
+            )}
+
+            <div style={{ marginTop: 54, background: C.orange, borderRadius: 4, padding: "clamp(24px,4vw,40px)", boxShadow: `6px 6px 0 ${C.graphite}` }}>
+              <h3 className="g-display" style={{ fontSize: "clamp(26px,4.5vw,40px)", color: "#fff" }}>Now go touch the tools.</h3>
+              <p style={{ color: "#fff", fontSize: 17.5, lineHeight: 1.5, maxWidth: 560, marginTop: 10, opacity: .95 }}>
+                A quiz can point. A GRIT Camp lets you actually try it — real tools, real tradespeople, one day, no cost. That's where this gets real.
+              </p>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
+                <button className="g-btn g-tap" style={{ background: "#fff", color: C.ink, border: "none", padding: "14px 28px", fontSize: 17, fontWeight: 800, cursor: "pointer", borderRadius: 2, fontFamily: "'Barlow',sans-serif" }}>Find a GRIT Camp</button>
+                <button onClick={onRestart} className="g-btn g-tap" style={{ background: "transparent", color: "#fff", border: "2px solid #fff", padding: "14px 26px", fontSize: 17, fontWeight: 800, cursor: "pointer", borderRadius: 2, display: "flex", alignItems: "center", gap: 8, fontFamily: "'Barlow',sans-serif" }}>
+                  <RotateCcw size={17} /> Start over
+                </button>
+              </div>
+            </div>
+
+            <p style={{ marginTop: 30, fontSize: 13.5, color: "#7a7d82", lineHeight: 1.5, maxWidth: 640 }}>
+              Prototype. The interest engine follows the U.S. Department of Labor's O*NET Interest Profiler (RIASEC) model; the trade roles are a GRIT-authored layer.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    function usePrefersReducedMotion() {
+      const [reduce, setReduce] = useState(false);
+      useEffect(() => {
+        const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+        setReduce(m.matches);
+        const h = (e) => setReduce(e.matches);
+        m.addEventListener?.("change", h);
+        return () => m.removeEventListener?.("change", h);
+      }, []);
+      return reduce;
+    }
+
+    function App() {
+      const [screen, setScreen] = useState("intro");
+      const [i, setI] = useState(0);
+      const [answers, setAnswers] = useState(Array(ITEMS.length).fill(0));
+      const reduce = usePrefersReducedMotion();
+
+      function answer(v) {
+        const next = [...answers];
+        next[i] = v;
+        setAnswers(next);
+        setTimeout(() => {
+          if (i < ITEMS.length - 1) setI(i + 1);
+          else { setScreen("loading"); setTimeout(() => setScreen("results"), reduce ? 200 : 1500); }
+        }, reduce ? 0 : 140);
+      }
+
+      const results = useMemo(() => (screen === "results" ? score(answers) : null), [screen, answers]);
+
+      function restart() {
+        setAnswers(Array(ITEMS.length).fill(0));
+        setI(0); setScreen("intro");
+      }
+
+      return (
+        <div style={{ background: C.concrete, color: C.ink, minHeight: "100%", fontFamily: "'Barlow', system-ui, sans-serif" }}>
+          <FontsAndBase />
+          {screen === "intro" && <Intro onStart={() => setScreen("quiz")} />}
+          {screen === "quiz" && (
+            <Quiz i={i} answers={answers} onAnswer={answer} onBack={() => i > 0 ? setI(i - 1) : setScreen("intro")} />
+          )}
+          {screen === "loading" && <Loading />}
+          {screen === "results" && results && <Results r={results} onRestart={restart} reduce={reduce} />}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
