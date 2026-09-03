@@ -5,15 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GRIT — Find Your Place in the Trades</title>
   
-  <!-- React & Babel CDNs -->
+  <!-- 1. React & React-DOM Core -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- 2. Babel for in-browser JSX compilation -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Recharts & Lucide CDNs -->
-  <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
-  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-  <script src="https://unpkg.com/lucide-react/dist/umd/lucide-react.js"></script>
+  <!-- 3. PropTypes (Required by Recharts) -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+
+  <!-- 4. Recharts UMD Build -->
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+
+  <!-- 5. Lucide React Standalone Icons Bundle -->
+  <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.js"></script>
 </head>
 <body style="margin: 0; background-color: #E7E7E0;">
 
@@ -22,13 +28,15 @@
   <script type="text/babel">
     const { useState, useMemo, useEffect } = React;
     const { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } = Recharts;
+
+    // Safe global fallback for Lucide React
+    const Lucide = window.LucideReact || window.lucide || {};
     const { 
       Wrench, Search, PenTool, Users, TrendingUp, ClipboardList,
       Zap, Droplet, Hammer, HardHat, Cpu, Gauge, GraduationCap,
       ShieldCheck, Radio, Briefcase, RotateCcw, ArrowLeft, Check 
-    } = LucideReact;
+    } = Lucide;
 
-    /* --- C. COLOR PALETTE & DATA --- */
     const C = {
       concrete: "#E7E7E0", paper: "#F5F4EE", graphite: "#1B1D22", ink: "#111318",
       orange: "#FF5A1F", hivis: "#FFD21E", steel: "#2E5266", line: "#C9C9C0",
@@ -137,7 +145,6 @@
       return PERSONA[a + b] || PERSONA[b + a] || SOLO[a];
     }
 
-    /* --- COMPONENTS --- */
     function FontsAndBase() {
       return (
         <style>{`
@@ -223,7 +230,7 @@
           <div style={{ padding: "18px 22px 0" }} className="g-scroll">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <button onClick={onBack} className="g-tap" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "#5b5e64", fontSize: 15, fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>
-                <ArrowLeft size={17} /> Back
+                {ArrowLeft ? <ArrowLeft size={17} /> : "←"} Back
               </button>
               <span className="g-stencil" style={{ fontSize: 12, color: "#5b5e64" }}>{String(i + 1).padStart(2, "0")} / {ITEMS.length}</span>
             </div>
@@ -241,7 +248,7 @@
                   return (
                     <button key={s.v} onClick={() => onAnswer(s.v)} className="g-btn g-tap" style={{ textAlign: "left", padding: "15px 18px", borderRadius: 2, cursor: "pointer", fontSize: 18, fontWeight: 700, fontFamily: "'Barlow',sans-serif", border: `2px solid ${active ? C.orange : C.line}`, background: active ? C.orange : C.paper, color: active ? "#fff" : C.ink, display: "flex", alignItems: "center", gap: 14 }}>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, border: `2px solid ${active ? "#fff" : C.line}`, display: "grid", placeItems: "center" }}>
-                        {active && <Check size={16} color="#fff" />}
+                        {active && (Check ? <Check size={16} color="#fff" /> : "✓")}
                       </span>
                       {s.label}
                     </button>
@@ -286,7 +293,7 @@
         <div style={{ background: C.paper, border: `2px solid ${surprise ? C.hivis : C.line}`, borderRadius: 3, padding: 17, display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <span className="g-stencil" style={{ fontSize: 11, color: meta.color, display: "flex", alignItems: "center", gap: 6 }}>
-              <meta.icon size={14} /> {meta.label}
+              {meta.icon && <meta.icon size={14} />} {meta.label}
             </span>
             {showFit && (
               <span style={{ fontFamily: "'Archivo Black',sans-serif", fontSize: 20, color: role.fit >= 70 ? C.orange : "#8a8d92" }}>
@@ -296,7 +303,7 @@
           </div>
           <div style={{ display: "flex", gap: 11, alignItems: "center" }}>
             <div style={{ width: 40, height: 40, background: C.graphite, borderRadius: 3, display: "grid", placeItems: "center", flexShrink: 0 }}>
-              <Icon size={21} color="#fff" />
+              {Icon && <Icon size={21} color="#fff" />}
             </div>
             <h3 style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.05 }}>{role.title}</h3>
           </div>
@@ -324,7 +331,7 @@
                     <div key={role.title} style={{ border: `2px solid ${strong ? C.orange : "#3a3d44"}`, background: strong ? "#241a13" : "#212429", borderRadius: 3, padding: "10px 12px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                         <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
-                          <Icon size={16} color={strong ? C.orange : "#8f9298"} /> {role.title}
+                          {Icon && <Icon size={16} color={strong ? C.orange : "#8f9298"} />} {role.title}
                         </span>
                         <span style={{ fontFamily: "'Archivo Black',sans-serif", fontSize: 14, color: strong ? C.orange : "#8f9298" }}>{role.fit}</span>
                       </div>
@@ -373,7 +380,7 @@
                   const d = DIMS.find(x => x.k === k); const Icon = d.icon;
                   return (
                     <div key={k} style={{ display: "flex", gap: 13, alignItems: "flex-start", background: C.paper, border: `2px solid ${C.line}`, borderLeft: `6px solid ${d.color}`, padding: "13px 15px", borderRadius: 2 }}>
-                      <Icon size={22} color={d.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                      {Icon && <Icon size={22} color={d.color} style={{ flexShrink: 0, marginTop: 2 }} />}
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 17 }}>{d.label}</div>
                         <div style={{ fontSize: 14.5, color: "#4a4d53", lineHeight: 1.4 }}>{d.blurb}</div>
@@ -410,8 +417,9 @@
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>
                 <button className="g-btn g-tap" style={{ background: "#fff", color: C.ink, border: "none", padding: "14px 28px", fontSize: 17, fontWeight: 800, cursor: "pointer", borderRadius: 2, fontFamily: "'Barlow',sans-serif" }}>Find a GRIT Camp</button>
+
                 <button onClick={onRestart} className="g-btn g-tap" style={{ background: "transparent", color: "#fff", border: "2px solid #fff", padding: "14px 26px", fontSize: 17, fontWeight: 800, cursor: "pointer", borderRadius: 2, display: "flex", alignItems: "center", gap: 8, fontFamily: "'Barlow',sans-serif" }}>
-                  <RotateCcw size={17} /> Start over
+                  {RotateCcw && <RotateCcw size={17} />} Start over
                 </button>
               </div>
             </div>
